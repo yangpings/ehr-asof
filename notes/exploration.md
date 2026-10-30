@@ -26,5 +26,7 @@ Loaded into Postgres 16 (Docker) with `notes/load_postgres.py`; queries in `note
 - Several patients return within days (1–11 days), others after years.
 
 ## Index (EXPLAIN ANALYZE)
-- Without index: Seq Scan, execution time ___ ms.
-- With index on `hadm_id`: Index Scan, execution time ___ ms.
+- Single-admission lookup (282 of 107,727 lab rows).
+- Without index: Seq Scan, execution time 5.323 ms.
+- With index on `hadm_id`: Bitmap Index Scan, execution time 0.153 ms (~35× faster).
+- On full MIMIC-IV, with over 100 million lab rows, a sequential scan would read every row for each lookup. This is why the service in Part 6 indexes `(hadm_id, available_time)`.
