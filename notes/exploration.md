@@ -18,7 +18,7 @@ Loaded into Postgres 16 (Docker) with `notes/load_postgres.py`; queries in `note
 - Implication: a model predicting at 24 h from `charttime` would use smear results drawn in the previous ~2–5 h that were not yet available.
 
 ## Missing storetime
-- 0.92% of all lab rows have no `storetime` (inpatient: X%). The fallback to `charttime` (flagged `lab_nostore`) affects very few rows.
+- 0.92% of all lab rows have no `storetime` (inpatient: 0.44%). The fallback to `charttime` (flagged `lab_nostore`) affects very few rows.
 
 ## Admissions and readmission gaps
 - Dates are shifted into the 2100s for de-identification; intervals within a patient are real.
