@@ -25,6 +25,7 @@ services:
     build: .
     environment:
       EHR_ASOF_DATABASE_URL: postgresql+psycopg://ehr:ehr@db:5432/ehr
+      WEB_CONCURRENCY: ${WORKERS:-2}
     ports:
       - "8765:8000"
     depends_on:

@@ -4,6 +4,7 @@ Run with ``ehr-asof serve`` or ``uvicorn ehr_asof.api:app``. Configuration comes
 from environment variables (see ``Settings``).
 """
 
+import asyncio
 import json
 import logging
 import math
@@ -16,11 +17,13 @@ from typing import Annotated, Literal
 
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.orm import Session, sessionmaker
 
 from ehr_asof import __version__
@@ -33,6 +36,12 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./ehr_asof.db"
     log_level: str = "INFO"
+    # Readiness must answer well within a load balancer's probe timeout, so it
+    # gives up sooner than the database connect timeout.
+    ready_timeout_s: float = 1.0
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    db_pool_timeout_s: float = 2.0
 
 
 class JsonFormatter(logging.Formatter):
@@ -77,7 +86,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        engine = make_engine(settings.database_url)
+        engine = make_engine(
+            settings.database_url,
+            pool_size=settings.db_pool_size,
+            max_overflow=settings.db_max_overflow,
+            pool_timeout=settings.db_pool_timeout_s,
+        )
         app.state.sessions = sessionmaker(engine, expire_on_commit=False)
         yield
         engine.dispose()
@@ -114,15 +128,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"detail": "database unavailable"}, status_code=503, headers={"Retry-After": "5"}
         )
 
+    @app.exception_handler(PoolTimeoutError)
+    async def server_busy(request: Request, exc: Exception) -> JSONResponse:
+        log.warning("connection pool exhausted", extra={"fields": {"error": type(exc).__name__}})
+        return JSONResponse(
+            {"detail": "server busy"}, status_code=503, headers={"Retry-After": "1"}
+        )
+
     @app.get("/health/live")
-    def live() -> dict[str, str]:
+    async def live() -> dict[str, str]:
         """Is the process up? Never touches the database."""
         return {"status": "ok"}
 
     @app.get("/health/ready")
-    def ready(session: SessionDep) -> dict[str, str]:
-        """Can we serve traffic? Fails with 503 when the database is unreachable."""
-        session.execute(text("SELECT 1"))
+    async def ready(request: Request) -> dict[str, str]:
+        """Can we serve traffic? 503 when the database is unreachable or too slow."""
+
+        def check() -> None:
+            with request.app.state.sessions() as session:
+                session.execute(text("SELECT 1"))
+
+        try:
+            await asyncio.wait_for(run_in_threadpool(check), timeout=settings.ready_timeout_s)
+        except TimeoutError:
+            log.error("database unavailable", extra={"fields": {"error": "ready timeout"}})
+            raise HTTPException(
+                status_code=503, detail="database unavailable", headers={"Retry-After": "5"}
+            ) from None
         return {"status": "ready"}
 
     @app.get("/admissions/{hadm_id}/features", response_model=FeatureResponse)
@@ -140,6 +172,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         as_of_naive = as_of.replace(tzinfo=None)
         clock = "available_time" if mode == "asof" else "event_time"
         events = events_as_of(session, hadm_id, as_of_naive, clock)
+        # Hand the connection back before the CPU-bound feature build, so the pool
+        # isn't exhausted by requests that no longer need the database.
+        session.close()
         cutoffs = pd.DataFrame({"hadm_id": [hadm_id], "cutoff": [pd.Timestamp(as_of_naive)]})
         matrix = build_features(events, cutoffs, mode, codes=sorted(events["code"].unique()))
         row = matrix.iloc[0]
