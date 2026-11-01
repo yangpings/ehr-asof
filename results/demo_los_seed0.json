@@ -1,0 +1,47 @@
+{
+  "outcome": "long_los",
+  "horizon_hours": 24.0,
+  "n_train": 186,
+  "n_test": 59,
+  "prevalence_test": 0.4067796610169492,
+  "n_features": 315,
+  "leakage_test": {
+    "cells_leaked": 0.029172099087353326,
+    "admissions_with_any_leak": 0.9322033898305084,
+    "last_cells_leaked": 0.01140603347191131,
+    "count_cells_leaked": 0.1694915254237288,
+    "flag_cells_leaked": 0.04683318465655665
+  },
+  "auroc": {
+    "reported": {
+      "estimate": 0.7166666666666667,
+      "low": 0.6003796296296297,
+      "high": 0.8245955165692008,
+      "n_valid": 200
+    },
+    "honest": {
+      "estimate": 0.5619047619047619,
+      "low": 0.4428888888888889,
+      "high": 0.6842406798245614,
+      "n_valid": 200
+    },
+    "deployed": {
+      "estimate": 0.5202380952380953,
+      "low": 0.3937090449082859,
+      "high": 0.6465417620137299,
+      "n_valid": 200
+    },
+    "reported - honest": {
+      "estimate": 0.15476190476190477,
+      "low": 0.04729838022165386,
+      "high": 0.23334693084693092,
+      "n_valid": 200
+    },
+    "reported - deployed": {
+      "estimate": 0.1964285714285714,
+      "low": 0.07846676750720402,
+      "high": 0.2797859050911377,
+      "n_valid": 200
+    }
+  }
+}
