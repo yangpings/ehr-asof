@@ -17,3 +17,25 @@ jobs:
       - run: uv run ruff check src tests
       - run: uv run mypy src
       - run: uv run pytest
+
+  postgres:
+    # Integration test against a real Postgres, not just SQLite.
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ehr
+          POSTGRES_PASSWORD: ehr
+          POSTGRES_DB: ehr
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U ehr" --health-interval 2s --health-retries 30
+    env:
+      EHR_ASOF_DATABASE_URL: postgresql+psycopg://ehr:ehr@localhost:5432/ehr
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked --extra postgres
+      - run: uv run ehr-asof synth --out /tmp/data --patients 100
+      - run: uv run ehr-asof load-db --data /tmp/data
+      - run: uv run pytest tests/test_postgres.py

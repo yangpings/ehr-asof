@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ehr
+      POSTGRES_PASSWORD: ehr
+      POSTGRES_DB: ehr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ehr -d ehr"]
+      interval: 2s
+      retries: 30
+
+  loader:
+    build: .
+    environment:
+      EHR_ASOF_DATABASE_URL: postgresql+psycopg://ehr:ehr@db:5432/ehr
+    command: ["sh", "-c", "ehr-asof synth --out /tmp/data --patients 500 && ehr-asof load-db --data /tmp/data"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: .
+    environment:
+      EHR_ASOF_DATABASE_URL: postgresql+psycopg://ehr:ehr@db:5432/ehr
+    ports:
+      - "8765:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      loader:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
