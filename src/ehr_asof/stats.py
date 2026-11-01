@@ -7,15 +7,35 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
-from sklearn.metrics import roc_auc_score
+
+
+def _average_ranks(x: NDArray[np.float64]) -> NDArray[np.float64]:
+    """1-based ranks, with tied values given the average of their ranks."""
+    sorter = np.argsort(x, kind="mergesort")
+    inverse = np.empty_like(sorter)
+    inverse[sorter] = np.arange(x.size)
+    xs = x[sorter]
+    new_value = np.r_[True, xs[1:] != xs[:-1]]
+    dense = np.cumsum(new_value)[inverse]
+    bounds = np.r_[np.flatnonzero(new_value), x.size]
+    ranks: NDArray[np.float64] = 0.5 * (bounds[dense] + bounds[dense - 1] + 1)
+    return ranks
 
 
 def auroc(y_true: ArrayLike, y_score: ArrayLike) -> float:
-    """Area under the ROC curve. Raises ``ValueError`` when only one class is present."""
-    y = np.asarray(y_true).astype(int)
-    if np.unique(y).size < 2:
+    """Area under the ROC curve via the Mann-Whitney rank identity.
+
+    Equivalent to ``sklearn.metrics.roc_auc_score`` (the tests check this) but
+    without its per-call input validation, which dominated bootstrap run time.
+    Raises ``ValueError`` when only one class is present.
+    """
+    y = np.asarray(y_true).astype(bool)
+    n_pos = int(y.sum())
+    n_neg = y.size - n_pos
+    if n_pos == 0 or n_neg == 0:
         raise ValueError("AUROC needs both classes")
-    return float(roc_auc_score(y, np.asarray(y_score, dtype=float)))
+    ranks = _average_ranks(np.asarray(y_score, dtype=float))
+    return float((ranks[y].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg))
 
 
 @dataclass(frozen=True)

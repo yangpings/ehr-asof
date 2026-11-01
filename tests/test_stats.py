@@ -41,3 +41,18 @@ def test_bootstrap_coverage_binormal() -> None:
         )["m"]
         hits += iv.low <= truth <= iv.high
     assert 0.85 <= hits / reps <= 0.99
+
+
+from hypothesis import given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+from sklearn.metrics import roc_auc_score  # noqa: E402
+
+
+@settings(max_examples=300, deadline=None)
+@given(st.lists(st.tuples(st.booleans(), st.integers(0, 5)), min_size=2, max_size=60))
+def test_auroc_matches_sklearn_including_ties(pairs: list[tuple[bool, int]]) -> None:
+    y = np.array([p[0] for p in pairs], dtype=int)
+    s = np.array([p[1] for p in pairs], dtype=float)  # small integers: many ties
+    if y.min() == y.max():
+        return
+    assert auroc(y, s) == pytest.approx(roc_auc_score(y, s), abs=1e-12)
