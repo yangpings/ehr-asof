@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -70,3 +71,37 @@ def test_database_down_returns_503(client: TestClient, monkeypatch: pytest.Monke
     assert r.status_code == 503
     assert r.headers["retry-after"] == "5"
     assert client.get("/health/live").status_code == 200
+
+
+def test_ready_times_out_on_a_slow_database(
+    tmp_path: Path, tables: dict[str, pd.DataFrame], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    url = f"sqlite:///{tmp_path / 'slow.db'}"
+    engine = make_engine(url)
+    init_db(engine)
+    engine.dispose()
+
+    def slow(*args: object, **kwargs: object) -> None:
+        time.sleep(1.0)
+
+    with TestClient(create_app(Settings(database_url=url, ready_timeout_s=0.2))) as c:
+        monkeypatch.setattr("sqlalchemy.orm.Session.execute", slow)
+        start = time.perf_counter()
+        r = c.get("/health/ready")
+        elapsed = time.perf_counter() - start
+    assert r.status_code == 503
+    assert r.headers["retry-after"] == "5"
+    assert elapsed < 0.9
+
+
+def test_pool_exhaustion_returns_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from sqlalchemy.exc import TimeoutError as PoolTimeoutError
+
+    def busy(*args: object, **kwargs: object) -> None:
+        raise PoolTimeoutError("QueuePool limit reached")
+
+    monkeypatch.setattr("sqlalchemy.orm.Session.execute", busy)
+    r = client.get("/admissions/20000001/features", params={"as_of": "2150-06-01T00:00:00"})
+    assert r.status_code == 503
+    assert r.json() == {"detail": "server busy"}
+    assert r.headers["retry-after"] == "1"

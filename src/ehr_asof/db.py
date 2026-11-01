@@ -52,11 +52,21 @@ class EventRow(Base):
     )
 
 
-def make_engine(url: str) -> Engine:
-    connect_args: dict[str, object] = {}
-    if url.startswith("postgresql"):
-        connect_args = {"connect_timeout": 3, "options": "-c statement_timeout=5000"}
-    return create_engine(url, pool_pre_ping=True, connect_args=connect_args)
+def make_engine(
+    url: str, pool_size: int = 5, max_overflow: int = 10, pool_timeout: float = 2.0
+) -> Engine:
+    if not url.startswith("postgresql"):
+        return create_engine(url, pool_pre_ping=True)
+    # Under overload, waiting for a free connection should fail fast (and become a
+    # 503) rather than hold the request for SQLAlchemy's default 30 seconds.
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        pool_timeout=pool_timeout,
+        connect_args={"connect_timeout": 3, "options": "-c statement_timeout=5000"},
+    )
 
 
 def init_db(engine: Engine) -> None:

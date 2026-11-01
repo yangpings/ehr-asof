@@ -1,0 +1,5 @@
+{"label": "before fix, 1 worker", "clients": 10, "requests": 1123, "errors": 0, "throughput_rps": 74.4, "p50_ms": 135.0, "p95_ms": 177.6, "p99_ms": 195.9, "littles_law_in_flight": 10.0}
+{"label": "before fix, 1 worker", "clients": 25, "requests": 1081, "errors": 0, "throughput_rps": 70.8, "p50_ms": 343.3, "p95_ms": 497.8, "p99_ms": 572.3, "littles_law_in_flight": 24.8}
+{"label": "before fix, 1 worker", "clients": 50, "requests": 1051, "errors": 0, "throughput_rps": 67.2, "p50_ms": 736.5, "p95_ms": 1203.4, "p99_ms": 1633.4, "littles_law_in_flight": 49.0}
+{"label": "before fix, 1 worker", "clients": 100, "requests": 0, "errors": 100, "throughput_rps": 0.0, "p50_ms": NaN, "p95_ms": NaN, "p99_ms": NaN, "littles_law_in_flight": NaN}
+{"label": "before fix, 1 worker", "clients": 200, "requests": 0, "errors": 200, "throughput_rps": 0.0, "p50_ms": NaN, "p95_ms": NaN, "p99_ms": NaN, "littles_law_in_flight": NaN}

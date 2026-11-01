@@ -21,8 +21,4 @@ While the database was down, every request that needed it failed fast and cleanl
 - **Readiness recovered without a restart.** `pool_pre_ping=True` discards dead connections and opens new ones, so no manual intervention was needed.
 - **Every response is traceable.** The 503 carried `x-request-id: 8ff3779f0b0b4da8a6e0498a1000cf5f`, and the same ID appears in the API's JSON log line with status 503, so a failed client request can be matched to the server log.
 
-## What I'd change
-
-- **Fail readiness faster.** The 503 took 4.0 s because the probe waited for the 3-second connect timeout (plus the pool's pre-ping). A health probe should answer well within its own timeout; a dedicated short timeout (for example 1 s) for the readiness check would make outages visible sooner.
-- **Alert on readiness.** In production, a sustained `ready = 503` should page someone; liveness should not.
-- **Client retries.** Clients should honour `Retry-After` with backoff rather than retrying immediately.
+- **Fail readiness faster.** The 503 took 4.0 s because the probe waited for the 3-second connect timeout (plus the pool's pre-ping). The readiness check now runs under its own 1-second timeout (`EHR_ASOF_READY_TIMEOUT_S`). Re-tested: 503 in 1.03 s, while `/health/live` stayed 200.
