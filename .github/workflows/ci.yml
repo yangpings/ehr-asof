@@ -8,8 +8,8 @@ jobs:
       matrix:
         python: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python }}
       - run: uv sync --locked
@@ -33,8 +33,8 @@ jobs:
     env:
       EHR_ASOF_DATABASE_URL: postgresql+psycopg://ehr:ehr@localhost:5432/ehr
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
       - run: uv sync --locked --extra postgres
       - run: uv run ehr-asof synth --out /tmp/data --patients 100
       - run: uv run ehr-asof load-db --data /tmp/data
