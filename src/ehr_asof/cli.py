@@ -37,6 +37,24 @@ def _experiment(args: argparse.Namespace) -> None:
     print(text)
 
 
+def _load_db(args: argparse.Namespace) -> None:
+    from ehr_asof.api import Settings
+    from ehr_asof.db import init_db, load, make_engine
+
+    url = args.db or Settings().database_url
+    tables = read_tables(args.data)
+    engine = make_engine(url)
+    init_db(engine)
+    n = load(engine, tables["admissions"], build_events(tables))
+    print(f"loaded {n} events into {engine.url.render_as_string(hide_password=True)}")
+
+
+def _serve(args: argparse.Namespace) -> None:
+    import uvicorn
+
+    uvicorn.run("ehr_asof.api:app", host=args.host, port=args.port, workers=args.workers)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ehr-asof", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -61,6 +79,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--n-boot", type=int, default=1000)
     p.add_argument("--out")
     p.set_defaults(func=_experiment)
+
+    p = sub.add_parser("load-db", help="load events into the service database")
+    p.add_argument("--data", required=True)
+    p.add_argument("--db", help="SQLAlchemy URL; defaults to $EHR_ASOF_DATABASE_URL")
+    p.set_defaults(func=_load_db)
+
+    p = sub.add_parser("serve", help="run the HTTP service")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--workers", type=int, default=1)
+    p.set_defaults(func=_serve)
 
     args = parser.parse_args(argv)
     try:
