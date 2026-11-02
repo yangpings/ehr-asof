@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import pandas as pd
 from sqlalchemy import (
@@ -91,12 +92,18 @@ def get_admission(session: Session, hadm_id: int) -> AdmissionRow | None:
     return session.get(AdmissionRow, hadm_id)
 
 
-def events_as_of(session: Session, hadm_id: int, as_of: datetime, clock: str) -> pd.DataFrame:
-    """Events for one admission whose ``clock`` column is at or before ``as_of``.
+EVENT_COLUMNS = [
+    "subject_id",
+    "hadm_id",
+    "source",
+    "code",
+    "value",
+    "event_time",
+    "available_time",
+]
 
-    The filter runs in SQL, so a later code path cannot accidentally see the future.
-    """
-    column = EventRow.available_time if clock == "available_time" else EventRow.event_time
+
+def _event_frame(session: Session, hadm_ids: list[int], *conditions: Any) -> pd.DataFrame:
     stmt = (
         select(
             EventRow.subject_id,
@@ -107,21 +114,50 @@ def events_as_of(session: Session, hadm_id: int, as_of: datetime, clock: str) ->
             EventRow.event_time,
             EventRow.available_time,
         )
-        .where(EventRow.hadm_id == hadm_id, column <= as_of)
-        .order_by(EventRow.event_time)
+        .where(EventRow.hadm_id.in_(hadm_ids), *conditions)
+        .order_by(EventRow.event_time, EventRow.id)
     )
-    rows = session.execute(stmt).all()
+    frame = pd.DataFrame(session.execute(stmt).all(), columns=EVENT_COLUMNS)
+    for col in ("event_time", "available_time"):
+        frame[col] = pd.to_datetime(frame[col])
+    return frame
+
+
+def events_as_of(session: Session, hadm_id: int, as_of: datetime, clock: str) -> pd.DataFrame:
+    """Events for one admission whose ``clock`` column is at or before ``as_of``.
+
+    The filter runs in SQL, so a later code path cannot accidentally see the future.
+    """
+    column = EventRow.available_time if clock == "available_time" else EventRow.event_time
+    return _event_frame(session, [hadm_id], column <= as_of)
+
+
+def admission_events(session: Session, hadm_id: int) -> pd.DataFrame:
+    """Every event of one admission, with both clocks, in clinical-time order."""
+    return _event_frame(session, [hadm_id])
+
+
+def events_for_many(
+    session: Session, hadm_ids: list[int], until: datetime, clock: str
+) -> pd.DataFrame:
+    """Events for several admissions in one query, up to the latest cutoff among them.
+
+    Each admission's own cutoff is applied afterwards by ``build_features``.
+    """
+    column = EventRow.available_time if clock == "available_time" else EventRow.event_time
+    return _event_frame(session, hadm_ids, column <= until)
+
+
+def existing_admissions(session: Session, hadm_ids: list[int]) -> set[int]:
+    rows = session.execute(select(AdmissionRow.hadm_id).where(AdmissionRow.hadm_id.in_(hadm_ids)))
+    return {int(r[0]) for r in rows}
+
+
+def all_event_times(session: Session) -> pd.DataFrame:
+    """Source, code and both clocks for every event: the input to the delay report."""
+    stmt = select(EventRow.source, EventRow.code, EventRow.event_time, EventRow.available_time)
     frame = pd.DataFrame(
-        rows,
-        columns=[
-            "subject_id",
-            "hadm_id",
-            "source",
-            "code",
-            "value",
-            "event_time",
-            "available_time",
-        ],
+        session.execute(stmt).all(), columns=["source", "code", "event_time", "available_time"]
     )
     for col in ("event_time", "available_time"):
         frame[col] = pd.to_datetime(frame[col])

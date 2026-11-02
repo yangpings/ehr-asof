@@ -37,6 +37,14 @@ def _experiment(args: argparse.Namespace) -> None:
     print(text)
 
 
+def _train(args: argparse.Namespace) -> None:
+    from ehr_asof.model import save, train_risk_model
+
+    model = train_risk_model(read_tables(args.data), horizon_hours=args.horizon)
+    path = save(model, args.out)
+    print(f"trained risk model on {model.n_train} admissions ({len(model.codes)} codes) -> {path}")
+
+
 def _load_db(args: argparse.Namespace) -> None:
     from ehr_asof.api import Settings
     from ehr_asof.db import init_db, load, make_engine
@@ -79,6 +87,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--n-boot", type=int, default=1000)
     p.add_argument("--out")
     p.set_defaults(func=_experiment)
+
+    p = sub.add_parser("train", help="train the risk model served by /risk (synthetic data only)")
+    p.add_argument("--data", required=True)
+    p.add_argument("--out", default="models/risk.pkl")
+    p.add_argument("--horizon", type=float, default=24.0, help="hours after admission")
+    p.set_defaults(func=_train)
 
     p = sub.add_parser("load-db", help="load events into the service database")
     p.add_argument("--data", required=True)

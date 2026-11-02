@@ -16,7 +16,10 @@ services:
     build: .
     environment:
       EHR_ASOF_DATABASE_URL: postgresql+psycopg://ehr:ehr@db:5432/ehr
-    command: ["sh", "-c", "ehr-asof synth --out /tmp/data --patients 500 && ehr-asof load-db --data /tmp/data"]
+    # Synthetic data only: the risk model is trained here and shared with the API.
+    command: ["sh", "-c", "ehr-asof synth --out /tmp/data --patients 500 && ehr-asof load-db --data /tmp/data && ehr-asof train --data /tmp/data --out /models/risk.pkl"]
+    volumes:
+      - models:/models
     depends_on:
       db:
         condition: service_healthy
@@ -26,6 +29,10 @@ services:
     environment:
       EHR_ASOF_DATABASE_URL: postgresql+psycopg://ehr:ehr@db:5432/ehr
       WEB_CONCURRENCY: ${WORKERS:-2}
+      EHR_ASOF_MODEL_PATH: /models/risk.pkl
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+    volumes:
+      - models:/models:ro
     ports:
       - "8765:8000"
     depends_on:
@@ -36,3 +43,4 @@ services:
 
 volumes:
   pgdata:
+  models:
