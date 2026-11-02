@@ -1,3 +1,4 @@
+[![ci](https://github.com/yangpings/ehr-asof/actions/workflows/ci.yml/badge.svg)](https://github.com/yangpings/ehr-asof/actions/workflows/ci.yml)
 # ehr-asof
 
 **Keywords:** EHR · MIMIC-IV · temporal leakage · point-in-time correctness · clinical prediction · AUROC · bootstrap confidence intervals
