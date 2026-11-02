@@ -1,0 +1,14 @@
+# Methods
+
+Full methods for [ehr-asof](../README.md). The README has a short version.
+
+- **Two clocks per event.** Labs: `event_time` = `charttime`, `available_time` = `storetime` (falls back to `charttime` when missing, flagged as `lab_nostore`). Diagnoses: `event_time` = `admittime` (the common shortcut), `available_time` = `dischtime`.
+- **Features.** Latest value per lab, lab count and diagnosis flags, built in two modes: *naive* keeps events with `event_time <= cutoff`; *as-of* keeps events with `available_time <= cutoff`. Vocabulary fitted on training admissions only; static age, sex and emergency admission.
+- **Cohort.** Admissions still in hospital and alive at `admittime + 24 h` (6, 12 and 48 h as sensitivity analyses). Outcomes: in-hospital mortality and length of stay > 7 days.
+- **Model.** Median imputation with missingness indicators, standardization, logistic regression. Split by patient (70/30).
+- **Three scores on the same test patients.** *Reported*: naive model on naive features. *Honest*: as-of model on as-of features. *Deployed*: naive model on as-of features.
+- **Uncertainty.** Paired bootstrap over patients (1,000 resamples), scoring every model on the same resample, so differences get their own 95% interval.
+- **Computational efficiency.** Profiling (cProfile) showed the bootstrap dominated run time: 1,000 resamples × 3 models plus 3 point estimates is 3,003 AUROC evaluations, and scikit-learn's `roc_auc_score` spends most of each call validating its inputs rather than computing. AUROC is therefore computed directly from the Mann–Whitney identity, AUROC = (R₊ − n₊(n₊+1)/2) / (n₊n₋), where R₊ is the sum of the positives' ranks and tied scores receive their average rank. A Hypothesis property test checks that it equals `roc_auc_score` on hundreds of random inputs with many ties.
+- **Storage and serving.** Events are stored in Postgres with both clocks; the as-of filter runs in SQL on an index over `(hadm_id, available_time)`. On the demo, an index on `hadm_id` cut a single-admission lab lookup from 5.3 ms (sequential scan) to 0.15 ms (~35×).
+- **Scaling and failure handling.** A closed-loop load generator (asyncio + httpx) sweeps 10–200 concurrent clients against 1, 2, 4 and 8 Uvicorn workers in Docker, recording throughput, p50/p95 latency and errors, with Little's law as a consistency check. Each request returns its database connection before the pandas feature build; a 2 s pool timeout turns overload into a 503 with `Retry-After`; readiness runs under its own 1 s timeout; liveness runs on the event loop, off the thread pool.
+- **Correctness checks.** Hypothesis property tests on hundreds of random event sets: as-of features equal the features computed after deleting every not-yet-available event, and a planted future value never appears as-of but does appear naive.
