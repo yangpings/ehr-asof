@@ -12,7 +12,8 @@ RUN uv sync --locked --no-dev --extra postgres
 
 # --- runtime stage: only the virtualenv and source, as a non-root user ---
 FROM python:3.12-slim AS runtime
-RUN useradd --create-home --uid 1000 app
+RUN useradd --create-home --uid 1000 app \
+    && mkdir -p /models /tmp/prom && chown app:app /models /tmp/prom
 WORKDIR /app
 COPY --from=build --chown=app:app /app /app
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 WEB_CONCURRENCY=2

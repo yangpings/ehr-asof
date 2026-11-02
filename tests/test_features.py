@@ -8,7 +8,12 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from ehr_asof.features import build_features, leakage_report, visible_events
+from ehr_asof.features import (
+    availability_status,
+    build_features,
+    leakage_report,
+    visible_events,
+)
 
 BASE = datetime(2150, 1, 1)
 
@@ -149,3 +154,19 @@ def test_leakage_report_requires_alignment() -> None:
     b = pd.DataFrame({"y": [1.0]}, index=[1])
     with pytest.raises(ValueError):
         leakage_report(a, b)
+
+
+@settings(max_examples=200, deadline=None)
+@given(event_sets())
+def test_status_matches_both_clocks(data: tuple[pd.DataFrame, pd.DataFrame]) -> None:
+    """known = what as-of sees; known + leaked = what naive sees; every event gets
+    exactly one of the three labels."""
+    events, cutoffs = data
+    for hadm, cutoff in zip(cutoffs["hadm_id"], cutoffs["cutoff"], strict=True):
+        adm = events[events["hadm_id"] == hadm]
+        one = cutoffs[cutoffs["hadm_id"] == hadm]
+        status = availability_status(adm, pd.Timestamp(cutoff))
+        assert len(status) == len(adm)
+        assert set(status) <= {"known", "leaked", "future"}
+        assert (status == "known").sum() == len(visible_events(adm, one, "asof"))
+        assert (status != "future").sum() == len(visible_events(adm, one, "naive"))

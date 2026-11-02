@@ -32,6 +32,23 @@ def visible_events(events: pd.DataFrame, cutoffs: pd.DataFrame, mode: Mode) -> p
     return merged[merged[clock] <= merged["cutoff"]]
 
 
+Status = Literal["known", "leaked", "future"]
+
+
+def availability_status(events: pd.DataFrame, as_of: pd.Timestamp) -> pd.Series:
+    """Label each event by what a system could know about it at ``as_of``.
+
+    - ``known``: already available (``available_time <= as_of``); an as-of model uses it.
+    - ``leaked``: it happened (``event_time <= as_of``) but wasn't available yet; only a
+      naive pipeline uses it.
+    - ``future``: it hadn't happened yet.
+    """
+    known = events["available_time"] <= as_of
+    happened = events["event_time"] <= as_of
+    status = np.where(known, "known", np.where(happened, "leaked", "future"))
+    return pd.Series(status, index=events.index, name="status")
+
+
 def build_features(
     events: pd.DataFrame,
     cutoffs: pd.DataFrame,
