@@ -1,7 +1,7 @@
 # Results and discussion
 
 Full results for [ehr-asof](../README.md): every table, the service and scaling measurements, the MIMIC-IV demo and the discussion. All numbers on synthetic data are known-answer validation; the demo shows the method runs on real EHR data.
-
+<img src="leakage_by_cutoff.png" alt="Mortality AUROC by prediction time" width="600">
 ## Synthetic data (known answer)
 
 1,935 training and 802 test admissions; 23 features; all 1,000 bootstrap resamples valid. 87.4% of test admissions had at least one naive feature value that wasn't available at 24 h (13.3% of all feature cells, and 61% of lab-count cells).

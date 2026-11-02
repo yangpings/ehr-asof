@@ -7,6 +7,8 @@
 
 Point-in-time (as-of) features for EHR data, and a measurement of how much EHR prediction models rely on information that wasn't available at prediction time.
 
+<img src="docs/leakage_by_cutoff.png" alt="Mortality AUROC by prediction time" width="600">
+
 ## Description
 
 EHR tables give most events a clinical time, such as when a blood sample was drawn (`charttime`), but the hospital system often learned the result later (`storetime`). Diagnosis codes carry no time at all, because they are assigned after discharge. A model trained on "everything charted before 24 h" can therefore use results and codes that did not yet exist at 24 h. It looks excellent in a paper and fails silently in deployment. `ehr-asof` gives every event two clocks, builds features under either one, and measures the difference.
