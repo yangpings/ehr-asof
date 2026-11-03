@@ -11,7 +11,7 @@ Point-in-time (as-of) features for EHR data, and a measurement of how much EHR p
 
 ## Description
 
-EHR tables give most events a clinical time, such as when a blood sample was drawn (`charttime`), but the hospital system often learned the result later (`storetime`). Diagnosis codes carry no time at all, because they are assigned after discharge. A model trained on "everything charted before 24 h" can therefore use results and codes that did not yet exist at 24 h. It looks excellent in a paper and fails silently in deployment. `ehr-asof` gives every event two clocks, builds features under either one, and measures the difference.
+Every EHR event comes with a sequence (e.g. when a blood sample was drawn `charttime` and hospital system receives that information hours later `storetime`). Since most diagnosis codes are assigned after discharge and carry no time indicators, when models are trained retrospectively they are at an advantage of knowing the "future" outcome when in reality that is not the case. Therefore, most models look excellent on paper fail when deployed. `ehr-asof` gives every event two clocks, builds features under either one, and measures the difference.
 
 ## Objective
 
