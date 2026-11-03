@@ -22,8 +22,8 @@ Loaded into Postgres 16 (Docker) with `notes/load_postgres.py`; queries in `note
 
 ## Admissions and readmission gaps
 - Dates are shifted into the 2100s for de-identification; intervals within a patient are real.
-- Some "readmissions" start 0–1 minute after discharge (e.g. one patient with gaps of 00:01 and 00:00). These are transfers or back-to-back records, not true readmissions, so a naive 30-day readmission rule would count them.
-- Several patients return within days (1–11 days), others after years.
+- Some "readmissions" start 0-1 minute after discharge (e.g. one patient with gaps of 00:01 and 00:00). These are transfers or back-to-back records, not true readmissions, so a naive 30-day readmission rule would count them.
+- Several patients return within days (1-11 days), others after years.
 
 ## Index (EXPLAIN ANALYZE)
 - Single-admission lookup (282 of 107,727 lab rows).
