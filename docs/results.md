@@ -86,7 +86,7 @@ Admission 20000001, 24 hours after admission (2150-07-23 17:09), on the Docker s
 | `/timeline` | 13 known, 3 leaked, 5 future. Leaked: hypertension (I10) and pneumonia (J189) codes, dated at admission but available at discharge 39.5 h later; HbA1c drawn 20 min after admission, resulted 38.7 h later |
 | `/risk` | reported 0.0002, honest 0.021, deployed 0.0000 |
 | `/features/batch` | 20000001: 13 events (matches the timeline's known count); 20000002: 71; admission 1 returned under `missing` |
-| `/delays` | Diagnosis codes median 110–117 h; HbA1c 31.4 h (p90 82 h); troponin 3.0 h; creatinine, sodium, potassium 1.5 h |
+| `/delays` | Diagnosis codes median 110-117 h; HbA1c 31.4 h (p90 82 h); troponin 3.0 h; creatinine, sodium, potassium 1.5 h |
 | `/metrics` | Request counts per route template and status, summed across both workers |
 
 The delay report recovers the delays planted in the synthetic generator (HbA1c 30 h, troponin 3 h, chemistry 1.5 h), so the service gives the known answer. The risk scores show the mechanism on one admission: the leaky model is near-certain the patient survives because it already sees which diagnosis codes the stay will end with; given only what was known at 24 h, the same model goes to 0.0000, while the as-of model gives 0.021. One admission illustrates the mechanism; the evidence for its size is the synthetic experiment above.
@@ -113,10 +113,10 @@ Closed-loop sweep against the Docker stack (Postgres 16, 500 synthetic patients,
 | 10 | 1,123 | 0 | 74.4 | 135 | 178 |
 | 25 | 1,081 | 0 | 70.8 | 343 | 498 |
 | 50 | 1,051 | 0 | 67.2 | 737 | 1,203 |
-| 100 | 0 | 100 | 0 | – | – |
-| 200 | 0 | 200 | 0 | – | – |
+| 100 | 0 | 100 | 0 | - | - |
+| 200 | 0 | 200 | 0 | - | - |
 
-One worker was already saturated at 10 clients: throughput stayed near 70 req/s, and each extra client only added queueing (p50 grew in proportion; Little's law gives 10.0, 24.8 and 49.0 requests in flight). At 100 clients every request failed because the database connection pool ran out (`QueuePool limit of size 5 overflow 10 reached, connection timed out, timeout 30.00`). The server log also shows feature requests finishing after 60 s, long after the load generator's 30 s client timeout: the server kept working for clients that had already given up. Under the same load, `/health/live` took 40–53 s to answer; after making it `async def`, it answered in 3–5 ms (5 probes, all 200) while 2 workers served 200 clients.
+One worker was already saturated at 10 clients: throughput stayed near 70 req/s, and each extra client only added queueing (p50 grew in proportion; Little's law gives 10.0, 24.8 and 49.0 requests in flight). At 100 clients every request failed because the database connection pool ran out (`QueuePool limit of size 5 overflow 10 reached, connection timed out, timeout 30.00`). The server log also shows feature requests finishing after 60 s, long after the load generator's 30 s client timeout: the server kept working for clients that had already given up. Under the same load, `/health/live` took 40-53 s to answer; after making it `async def`, it answered in 3-5 ms (5 probes, all 200) while 2 workers served 200 clients.
 
 Throughput in req/s, with p95 latency in ms in brackets; 0 errors unless shown.
 
@@ -140,14 +140,14 @@ A single 1-second `docker stats` snapshot per worker count (so the CPU readings 
 | 4 | 179% | 12% | 438 MiB |
 | 8 | 156% | 13% | 801 MiB |
 
-The database is never the bottleneck (12–17% CPU). The API container never used more than about 2.3 cores, even with 8 workers, so the workers were waiting on something outside them. Memory grows about 100 MiB per worker, because each worker is a separate Python process. **The bottleneck was the load generator.** Docker had 24 CPUs, so the CPU count wasn't the limit. Two load generators with 25 clients each, run at the same time against 8 workers, got 109.2 + 110.9 = 220.1 req/s with 0 errors, while one generator with 50 clients had got 103.4 req/s. The single Python process sending the requests saturated at about 140 req/s, so the 4- and 8-worker numbers above were lower bounds; the re-measurement below gives the real ceiling. The fall in throughput as clients rise is most likely the generator too, spending more of its time managing hundreds of connections.
+The database is never the bottleneck (12-17% CPU). The API container never used more than about 2.3 cores, even with 8 workers, so the workers were waiting on something outside them. Memory grows about 100 MiB per worker, because each worker is a separate Python process. **The bottleneck was the load generator.** Docker had 24 CPUs, so the CPU count wasn't the limit. Two load generators with 25 clients each, run at the same time against 8 workers, got 109.2 + 110.9 = 220.1 req/s with 0 errors, while one generator with 50 clients had got 103.4 req/s. The single Python process sending the requests saturated at about 140 req/s, so the 4- and 8-worker numbers above were lower bounds; the re-measurement below gives the real ceiling. The fall in throughput as clients rise is most likely the generator too, spending more of its time managing hundreds of connections.
 
 ## Computational performance
 
 | | Experiment wall time (mortality, 1,000 resamples) | AUROC calls | Share of profiled time in AUROC |
 | --- | --- | --- | --- |
 | scikit-learn `roc_auc_score` | 6.1 s | 3,003 | 95% (8.8 of 9.3 s) |
-| Rank-based (Mann–Whitney) AUROC | 2.7 s | 3,003 | 41% (0.33 of 0.82 s) |
+| Rank-based (Mann-Whitney) AUROC | 2.7 s | 3,003 | 41% (0.33 of 0.82 s) |
 
 Under the profiler the whole experiment went from 9.3 s to 0.8 s, and the AUROC calls from 8.8 s to 0.33 s (about 27× faster). Most of the remaining wall time is Python start-up and imports. The full test suite, which includes a 120-repetition bootstrap coverage test, now runs in under 30 seconds.
 
@@ -167,9 +167,9 @@ Point estimates and all bootstrap intervals are unchanged: the largest differenc
 | Anisocytosis (smear) | 249 | 2.43 | 4.77 |
 | Platelet smear | 264 | 2.28 | 4.23 |
 
-The slowest common labs are manual blood-smear reads: a model predicting at 24 h from clinical time would use smear results drawn in the previous 2–5 hours (up to 19 h for blasts) that were not yet available. The same delays were computed independently in SQL (Postgres) and in Python (`ehr-asof delays`) and agree exactly.
+The slowest common labs are manual blood-smear reads: a model predicting at 24 h from clinical time would use smear results drawn in the previous 2-5 hours (up to 19 h for blasts) that were not yet available. The same delays were computed independently in SQL (Postgres) and in Python (`ehr-asof delays`) and agree exactly.
 
-**Diagnosis codes leak the most.** Codes become available at discharge, a median of 100–136 hours after admission for the most common codes (e.g. hypertension, hyperlipidemia), yet the common shortcut treats them as known at admission.
+**Diagnosis codes leak the most.** Codes become available at discharge, a median of 100-136 hours after admission for the most common codes (e.g. hypertension, hyperlipidemia), yet the common shortcut treats them as known at admission.
 
 **The fallback rule is rarely needed.** 0.92% of all lab rows, and 0.44% of inpatient lab rows, have no `storetime`.
 
@@ -182,8 +182,8 @@ The slowest common labs are manual blood-smear reads: a model predicting at 24 h
 
 In the demo test set, 93.2% of admissions had at least one feature value that wasn't available at 24 h (2.9% of feature cells; 17% of lab-count cells).
 
-- **Mortality is uninformative at this size.** With 4 deaths among 59 test admissions, every interval spans most of the 0–1 range and 17 resamples had no deaths at all.
-- **Length of stay shows inflation on real data, unlike the synthetic data.** The reported − honest gap is +0.155 with an interval excluding 0, and the deployed model is close to chance (0.520). In the synthetic generator, discharge codes were tied to death but not to stay length; in real records, longer stays plausibly accumulate more diagnosis codes and more labs, so the leaked information also predicts length of stay. Repeating the experiment over 10 random patient splits (seeds 0–9, 200 resamples each) gave reported − honest gaps of 0.155, 0.049, −0.034, 0.014, 0.048, 0.019, 0.086, 0.063, 0.010 and 0.124: positive in 9 of 10 splits, mean +0.053. The direction is consistent, but the first split (+0.155) was at the high end, so the size is uncertain. This is a hypothesis to test on full MIMIC-IV, not a finding.
+- **Mortality is uninformative at this size.** With 4 deaths among 59 test admissions, every interval spans most of the 0-1 range and 17 resamples had no deaths at all.
+- **Length of stay shows inflation on real data, unlike the synthetic data.** The reported − honest gap is +0.155 with an interval excluding 0, and the deployed model is close to chance (0.520). In the synthetic generator, discharge codes were tied to death but not to stay length; in real records, longer stays plausibly accumulate more diagnosis codes and more labs, so the leaked information also predicts length of stay. Repeating the experiment over 10 random patient splits (seeds 0-9, 200 resamples each) gave reported − honest gaps of 0.155, 0.049, −0.034, 0.014, 0.048, 0.019, 0.086, 0.063, 0.010 and 0.124: positive in 9 of 10 splits, mean +0.053. The direction is consistent, but the first split (+0.155) was at the high end, so the size is uncertain. This is a hypothesis to test on full MIMIC-IV, not a finding.
 
 ## Discussion
 
@@ -195,4 +195,4 @@ The method's correctness does not rest on sample size: it is established by prop
 
 The performance work illustrates a general point for evaluation-heavy research code: the expensive step was not modeling but a small statistic evaluated thousands of times, where a library's per-call overhead outweighed the computation itself. Measuring before optimizing located the cost, and an equivalent closed-form computation, verified against the reference implementation, removed it without changing any result. Resampling-based uncertainty estimates are only practical to run routinely, and in CI, if they are fast.
 
-**Strengths.** Correctness proven by property tests rather than examples; known-answer validation; paired patient-level bootstrap with a patient-level split; the same feature code in the experiment and in the HTTP service (no training–serving skew); reproducible by anyone from open data, a lock file and CI on Python 3.11–3.13; a profiled, verified AUROC that keeps the full bootstrap fast enough to run in tests.
+**Strengths.** Correctness proven by property tests rather than examples; known-answer validation; paired patient-level bootstrap with a patient-level split; the same feature code in the experiment and in the HTTP service (no training-serving skew); reproducible by anyone from open data, a lock file and CI on Python 3.11-3.13; a profiled, verified AUROC that keeps the full bootstrap fast enough to run in tests.
